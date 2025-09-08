@@ -1,0 +1,2814 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频字幕播放器</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 222.2 84% 4.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 222.2 84% 4.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 222.2 84% 4.9%;
+      --primary: 221.2 83.2% 53.3%;
+      --primary-foreground: 210 40% 98%;
+      --secondary: 210 40% 96%;
+      --secondary-foreground: 222.2 84% 4.9%;
+      --muted: 210 40% 96%;
+      --muted-foreground: 215.4 16.3% 46.9%;
+      --accent: 210 40% 96%;
+      --accent-foreground: 222.2 84% 4.9%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 210 40% 98%;
+      --border: 214.3 31.8% 91.4%;
+      --input: 214.3 31.8% 91.4%;
+      --ring: 221.2 83.2% 53.3%;
+      --radius: 0.5rem;
+    }
+
+    .dark {
+      --background: 222.2 84% 4.9%;
+      --foreground: 210 40% 98%;
+      --card: 222.2 84% 4.9%;
+      --card-foreground: 210 40% 98%;
+      --popover: 222.2 84% 4.9%;
+      --popover-foreground: 210 40% 98%;
+      --primary: 217.2 91.2% 59.8%;
+      --primary-foreground: 222.2 84% 4.9%;
+      --secondary: 217.2 32.6% 17.5%;
+      --secondary-foreground: 210 40% 98%;
+      --muted: 217.2 32.6% 17.5%;
+      --muted-foreground: 215 20.2% 65.1%;
+      --accent: 217.2 32.6% 17.5%;
+      --accent-foreground: 210 40% 98%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 210 40% 98%;
+      --border: 217.2 32.6% 17.5%;
+      --input: 217.2 32.6% 17.5%;
+      --ring: 224.3 76.3% 94.1%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      min-height: 100vh;
+      height: 100vh; /* 固定高度 */
+      transition: background-color 0.3s, color 0.3s;
+      overflow: hidden; /* 防止窗口出现滚动条影响拖拽 */
+    }
+
+    .app-container {
+      min-height: 100vh;
+      height: 100vh; /* 固定高度 */
+      display: flex;
+      flex-direction: column;
+      background: hsl(var(--background));
+      position: relative;
+      overflow: hidden; /* 防止整体滚动 */
+    }
+
+    /* 为macOS的特殊处理 */
+    @media screen and (-webkit-min-device-pixel-ratio: 1) {
+      .header {
+        padding-top: 1.75rem; /* macOS上额外增加一些上内边距 */
+      }
+    }
+
+    /* Windows和Linux的特殊处理 */
+    @media screen and (min-width: 1px) {
+      .header {
+        min-height: 60px; /* 确保最小高度 */
+      }
+    }
+
+    /* Shadcn Button Components */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      border-radius: calc(var(--radius) - 2px);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+      cursor: pointer;
+      border: none;
+      gap: 0.5rem;
+      text-decoration: none;
+      outline: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid hsl(var(--ring));
+      outline-offset: 2px;
+    }
+
+    .btn-primary {
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      padding: 0.5rem 1rem;
+      height: 2.5rem;
+    }
+
+    .btn-primary:hover {
+      background: hsl(var(--primary) / 0.9);
+    }
+
+    .btn-secondary {
+      background: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+      padding: 0.5rem 1rem;
+      height: 2.5rem;
+      border: 1px solid hsl(var(--border));
+    }
+
+    .btn-secondary:hover {
+      background: hsl(var(--secondary) / 0.8);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: hsl(var(--foreground));
+      padding: 0.5rem 1rem;
+      height: 2.5rem;
+    }
+
+    .btn-ghost:hover {
+      background: hsl(var(--accent));
+      color: hsl(var(--accent-foreground));
+    }
+
+    .btn-sm {
+      height: 2rem;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    /* Shadcn Card Components */
+    .card {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      transition: all 0.15s;
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+
+    .card-header {
+      padding: 1.5rem 1.5rem 0;
+    }
+
+    .card-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: hsl(var(--card-foreground));
+    }
+
+    .card-description {
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .card-content {
+      padding: 1.5rem;
+    }
+
+    /* Header */
+    .header {
+      padding: 1.5rem 2rem; /* 增加上下内边距从1rem到1.5rem */
+      border-bottom: 1px solid hsl(var(--border));
+      background: hsl(var(--background) / 0.95);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-app-region: drag; /* 使header区域可拖拽 */
+      /* user-select: none; 删除这行，允许选择文本 */
+      position: relative;
+      z-index: 100;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      -webkit-app-region: no-drag; /* 让header内的按钮可点击 */
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      -webkit-app-region: drag; /* 标题仍然可拖拽 */
+    }
+
+    .theme-toggle {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: hsl(var(--secondary));
+      border: 1px solid hsl(var(--border));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-app-region: no-drag; /* 按钮区域不可拖拽 */
+    }
+
+    .theme-toggle:hover {
+      background: hsl(var(--secondary) / 0.8);
+    }
+
+    /* 深色模式下主题图标颜色 */
+    .dark .theme-icon-light {
+      color: white;
+    }
+
+    .dark .theme-icon-dark {
+      color: white;
+    }
+
+    /* Header Actions */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      -webkit-app-region: no-drag; /* 按钮区域不可拖拽 */
+    }
+
+    .home-btn {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: hsl(var(--secondary));
+      border: 1px solid hsl(var(--border));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: hsl(var(--foreground));
+    }
+
+    .home-btn:hover {
+      background: hsl(var(--secondary) / 0.8);
+    }
+
+    /* Main Layout */
+    .main-content {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      max-width: 100vw;
+      height: calc(100vh - 6rem); /* 减去header和padding的高度 */
+      overflow: hidden; /* 防止整体滚动 */
+    }
+
+    /* Home Page */
+    .home-page {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: hsl(var(--background));
+    }
+
+    .home-content {
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .home-header {
+      margin-bottom: 3rem;
+    }
+
+    .home-header h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: hsl(var(--foreground));
+    }
+
+    .home-header p {
+      font-size: 1.125rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .sync-status-info {
+      margin-bottom: 0.75rem;
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .sync-status-text {
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .sync-status-text:hover {
+      color: hsl(var(--primary));
+    }
+
+    .sync-status-text.has-sync {
+      color: hsl(var(--foreground));
+    }
+
+    .home-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 200px);
+      gap: 24px;
+      justify-content: center;
+    }
+
+    .home-action-card {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 1.5rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+      width: 200px;
+      height: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .home-action-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      border-color: hsl(var(--primary));
+    }
+
+    .home-action-card.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .home-action-card.disabled:hover {
+      transform: none;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+      border-color: hsl(var(--border));
+    }
+
+    .action-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 3rem;
+      height: 3rem;
+      background: hsl(var(--primary) / 0.1);
+      border-radius: 50%;
+      margin-bottom: 1rem;
+      color: hsl(var(--primary));
+    }
+
+    .action-content h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: hsl(var(--foreground));
+    }
+
+    .action-content p {
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    @media (max-width: 768px) {
+      .home-actions {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        justify-items: center;
+      }
+      
+      .home-action-card {
+        padding: 1.5rem 1rem;
+        width: 200px;
+        height: 180px;
+      }
+      
+      .home-header h2 {
+        font-size: 1.5rem;
+      }
+    }
+
+    @media (max-width: 960px) and (min-width: 769px) {
+      .home-actions {
+        grid-template-columns: repeat(2, 200px);
+        gap: 24px;
+        justify-content: center;
+      }
+    }
+
+    .video-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      overflow-y: auto;
+      flex: 1; /* 占用全部可用空间 */
+    }
+
+    .sidebar {
+      display: none; /* 隐藏侧边栏，因为字典面板已改为抽屉式 */
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 2px dashed hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 3rem 2rem;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+      background: hsl(var(--muted) / 0.1);
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: hsl(var(--primary));
+      background: hsl(var(--primary) / 0.05);
+    }
+
+    .drop-zone h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: hsl(var(--foreground));
+    }
+
+    .drop-zone p {
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+    }
+
+    /* Video Player */
+    .video-container {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #000;
+      display: none;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      width: 100%;
+      max-width: 100%;
+    }
+    
+    /* 优先使用现代的aspect-ratio属性 */
+    @supports (aspect-ratio: 16 / 9) {
+      .video-container {
+        aspect-ratio: 16 / 9;
+      }
+    }
+    
+    /* 为不支持aspect-ratio的浏览器提供备用方案 */
+    @supports not (aspect-ratio: 16 / 9) {
+      .video-container::before {
+        content: '';
+        display: block;
+        padding-bottom: 56.25%; /* 16:9 = 9/16 = 0.5625 = 56.25% */
+      }
+      
+      .video-container video {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+    }
+
+    .video-container.active {
+      display: block;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* 保持视频比例，适应容器 */
+      display: block;
+    }
+
+    /* Subtitle Display */
+    .subtitle-display {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 1rem;
+      height: 100px;  /* 固定高度100px */
+      font-size: 1.125rem;
+      line-height: 1.4;
+      text-align: center;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;  /* 隐藏超出内容 */
+      margin-bottom: 1.5rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    }
+    
+    /* 视频内字幕覆盖层 */
+    .video-subtitle-overlay {
+      position: absolute;
+      bottom: 1px; /* 向上移动20像素 */
+      left: 0;
+      right: 0;
+      height: 200px; /* 给字幕留出足够的空间 */
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      pointer-events: none; /* 不阻挡视频控件 */
+      z-index: 10;
+    }
+    
+    .video-subtitle-content {
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      margin: 1rem;
+      text-align: center;
+      max-width: 90%;
+      backdrop-filter: blur(4px);
+      pointer-events: auto; /* 允许字幕交互 */
+      font-size: 1.5rem; /* 进一步增大字体 */
+      line-height: 1.5;
+    }
+    
+    /* 视频内字幕单词样式 */
+    .video-subtitle-content .subtitle-word {
+      color: white;
+      background: transparent;
+    }
+    
+    .video-subtitle-content .subtitle-word:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #4285f4;
+    }
+
+    /* 自定义视频控件样式 */
+    .custom-video-controls {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-top: 0.5rem;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    }
+
+    /* 进度条容器 */
+    .progress-container {
+      margin-bottom: 1rem;
+    }
+
+    .progress-bar {
+      position: relative;
+      height: 6px;
+      background: hsl(var(--muted));
+      border-radius: 3px;
+      cursor: pointer;
+      transition: height 0.2s ease;
+    }
+
+    .progress-bar:hover {
+      height: 8px;
+    }
+
+    .progress-filled {
+      height: 100%;
+      background: hsl(var(--primary));
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.1s ease;
+    }
+
+    .progress-handle {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      background: hsl(var(--primary));
+      border: 2px solid white;
+      border-radius: 50%;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      left: 0%;
+    }
+
+    .progress-bar:hover .progress-handle {
+      opacity: 1;
+    }
+
+    /* 控制按钮行 */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .controls-left,
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* 控制按钮 */
+    .control-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 16px;
+    }
+
+    .control-btn:hover {
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+    }
+
+    .control-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* 时间显示 */
+    .time-display {
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+      min-width: 80px;
+    }
+
+    /* 音量控制 */
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .volume-slider-container {
+      width: 80px;
+    }
+
+    .volume-slider {
+      width: 100%;
+      height: 4px;
+      background: hsl(var(--muted));
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: hsl(var(--primary));
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .volume-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: hsl(var(--primary));
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+
+    /* 播放速度控制 */
+    .speed-control {
+      position: relative;
+    }
+
+    .speed-control .control-btn {
+      width: auto;
+      padding: 0 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .speed-menu {
+      position: absolute;
+      bottom: 100%;
+      right: 0;
+      background: hsl(var(--popover));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      padding: 0.5rem 0;
+      margin-bottom: 0.5rem;
+      min-width: 80px;
+      display: none;
+      z-index: 50;
+    }
+
+    .speed-menu.show {
+      display: block;
+    }
+
+    .speed-option {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background-color 0.2s ease;
+    }
+
+    .speed-option:hover {
+      background: hsl(var(--muted));
+    }
+
+    .speed-option.active {
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+      .custom-video-controls {
+        padding: 0.75rem;
+      }
+      
+      .controls-row {
+        gap: 0.5rem;
+      }
+      
+      .controls-left,
+      .controls-right {
+        gap: 0.5rem;
+      }
+      
+      .control-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+      }
+      
+      .volume-slider-container {
+        width: 60px;
+      }
+      
+      .time-display {
+        font-size: 0.75rem;
+        min-width: 70px;
+      }
+    }
+    
+    /* 简化空状态样式 */
+    .subtitle-display .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: hsl(var(--muted-foreground));
+      font-size: 0.875rem;
+    }
+    
+    .subtitle-display .empty-state-icon {
+      opacity: 0.6;
+      font-size: 1.5rem;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+      .subtitle-display {
+        height: 80px;
+        font-size: 1.125rem; /* 增大移动端字体 */
+        padding: 0.75rem;
+      }
+      
+      .subtitle-display .empty-state {
+        font-size: 0.875rem;
+        gap: 0.25rem;
+      }
+      
+      .video-subtitle-content {
+         font-size: 1.375rem; /* 增大移动端视频字幕字体 */
+       }
+    }
+    
+    @media (max-width: 480px) {
+      .subtitle-display {
+        height: 70px;
+        font-size: 1rem; /* 小屏幕保持合适大小 */
+        padding: 0.5rem;
+      }
+      
+      .video-subtitle-content {
+         font-size: 1.25rem; /* 增大小屏幕视频字幕字体 */
+         padding: 0.5rem 1rem;
+       }
+    }
+    
+    /* 字幕显示区域拖拽反馈样式 */
+    .subtitle-display.subtitle-drop-active {
+      border-color: hsl(var(--primary));
+      background: hsl(var(--primary) / 0.05);
+      box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+    }
+    
+    /* 全局字幕拖放提示 */
+    body.dragover::after {
+      content: '📄 拖放字幕文件到此处';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: hsl(var(--primary) / 0.8);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 500;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    .subtitle-word {
+      display: inline;
+      padding: 0.1rem 0.2rem; /* 减少内边距，缩小单词间距 */
+      border-radius: calc(var(--radius) - 3px);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      /* user-select: none; 删除这行，允许选择文本 */
+      font-size: 1.15em; /* 进一步增大字体 */
+      line-height: inherit;
+      font-weight: 400; /* 减少字重，使字体更细 */
+    }
+
+    .subtitle-word:hover {
+      background: hsl(var(--primary) / 0.2);
+      color: hsl(var(--primary));
+    }
+
+    /* 已收藏单词的样式 */
+    .subtitle-word.favorited-word {
+      color: #ef4444 !important; /* 红色 */
+      font-weight: 600;
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .subtitle-word.favorited-word:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #dc2626 !important; /* 深红色 */
+    }
+
+    /* Controls and Lists */
+    .controls-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+
+
+    /* Dictionary Panel - 抽屉式侧边栏 */
+    .dictionary-panel {
+      position: fixed;
+      top: 0;
+      right: -400px; /* 默认隐藏在屏幕右侧 */
+      width: 400px;
+      height: 100vh;
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden; /* 防止内容溢出 */
+      z-index: 1000;
+      transition: right 0.3s ease; /* 添加平滑过渡效果 */
+    }
+    
+    /* 显示字典面板时的样式 */
+    .dictionary-panel.show {
+      right: 0;
+    }
+    
+    /* 字典面板遮罩层 */
+    .dictionary-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 999;
+      display: none;
+    }
+    
+    .dictionary-overlay.show {
+      display: block;
+    }
+
+    .dictionary-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid hsl(var(--border));
+      background: hsl(var(--muted) / 0.1);
+      border-radius: var(--radius) var(--radius) 0 0;
+      flex-shrink: 0; /* 不被压缩 */
+      flex-direction: column; /* 垂直布局 */
+      align-items: stretch; /* 拉伸对齐 */
+    }
+
+    /* Track字幕开关样式 */
+    .subtitle-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border-radius: calc(var(--radius) - 2px);
+      border: 1px solid hsl(var(--border));
+    }
+
+    .dark .subtitle-toggle-row {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .toggle-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: hsl(var(--foreground));
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: hsl(var(--muted));
+      border: 1px solid hsl(var(--border));
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      padding: 0;
+      outline: none;
+    }
+
+    .toggle-switch:hover {
+      background: hsl(var(--muted) / 0.8);
+    }
+
+    .toggle-switch[data-enabled="true"] {
+      background: hsl(var(--primary));
+      border-color: hsl(var(--primary));
+    }
+
+    .toggle-slider {
+      position: absolute;
+      top: 1px;
+      left: 1px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle-switch[data-enabled="true"] .toggle-slider {
+      transform: translateX(20px);
+    }
+
+    .dictionary-content {
+      flex: 1;
+      padding: 0;
+      overflow-y: auto !important; /* 强制显示滚动条 */
+      height: 100%; /* 充分利用可用高度 */
+    }
+
+    /* Word Results */
+    .word-result {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .dictionary-section {
+      padding: 1.5rem;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .dictionary-section:last-child {
+      border-bottom: none;
+    }
+
+    .dictionary-section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: hsl(var(--primary));
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .word-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: hsl(var(--foreground));
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
+    }
+
+    .word-phonetic {
+      color: hsl(var(--muted-foreground));
+      font-style: italic;
+      margin-bottom: 1.5rem;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .phonetic-label {
+      background: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+      padding: 0.25rem 0.5rem;
+      border-radius: calc(var(--radius) - 2px);
+      font-size: 0.75rem;
+      font-weight: 500;
+      font-style: normal;
+    }
+
+    /* 音标点击发音样式 */
+    #wordPhonetic {
+      user-select: none;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    #wordPhonetic:hover {
+      color: hsl(var(--primary)) !important;
+      transform: scale(1.05);
+    }
+
+    #wordPhonetic:active {
+      transform: scale(0.95);
+    }
+
+    /* 音标发音图标 */
+    #wordPhonetic::after {
+      content: "🔊";
+      position: absolute;
+      top: -2px;
+      right: -20px;
+      font-size: 0.8rem;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    #wordPhonetic:hover::after {
+      opacity: 0.7;
+    }
+
+    .definition-group {
+      margin-bottom: 1rem;
+    }
+
+    .part-of-speech {
+      display: inline-flex;
+      align-items: center;
+      background: hsl(var(--primary) / 0.1);
+      color: hsl(var(--primary));
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-right: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .definition-text {
+      color: hsl(var(--foreground));
+      line-height: 1.6;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .ai-section {
+      background: hsl(var(--muted) / 0.1);
+    }
+
+    .context-explanation {
+      margin-bottom: 1rem;
+    }
+
+    .context-label {
+      background: hsl(var(--accent));
+      color: hsl(var(--accent-foreground));
+      padding: 0.25rem 0.5rem;
+      border-radius: calc(var(--radius) - 2px);
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: inline-block;
+    }
+
+    .context-text {
+      color: hsl(var(--foreground));
+      line-height: 1.6;
+      font-size: 0.95rem;
+      font-style: italic;
+    }
+
+    .translation-result {
+      margin-top: 1rem;
+    }
+
+    .translation-label {
+      background: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+      padding: 0.25rem 0.5rem;
+      border-radius: calc(var(--radius) - 2px);
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: inline-block;
+    }
+
+    .translation-text {
+      color: hsl(var(--foreground));
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    /* Utility Classes */
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid hsl(var(--border));
+      border-top: 2px solid hsl(var(--primary));
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: hsl(var(--muted-foreground));
+      padding: 2rem;
+    }
+
+    .empty-state-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 1rem;
+      opacity: 0.5;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 9999px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+      border: 1px solid hsl(var(--border));
+    }
+
+    .separator {
+      height: 1px;
+      background: hsl(var(--border));
+      margin: 1rem 0;
+    }
+
+    .ai-response {
+      white-space: pre-wrap;
+      line-height: 1.6;
+      animation: fadeIn 0.3s ease-in-out;
+      color: hsl(var(--foreground));
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Form Elements */
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .main-content {
+        gap: 1rem;
+      }
+      
+      .dictionary-panel {
+        height: calc(100vh - 16rem); /* 较小屏幕上跟随窗口高度 */
+      }
+      
+      /* 中等屏幕上视频容器优化 */
+      .video-container {
+        max-width: 90vw; /* 增加视频最大宽度 */
+        margin: 0 auto;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header, .main-content {
+        padding: 1rem;
+      }
+      
+      .card-content {
+        padding: 1rem;
+      }
+      
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+      
+      .main-content {
+        height: calc(100vh - 8rem); /* 手机上调整高度 */
+      }
+      
+      .dictionary-panel {
+        height: calc(100vh - 12rem); /* 手机上也跟随窗口高度 */
+      }
+      
+      /* 手机屏幕上视频容器优化 */
+      .video-container {
+        max-width: 100%; /* 手机上充分利用屏幕宽度 */
+        margin: 0 auto;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      /* 小手机屏幕上进一步限制视频尺寸 */
+      .video-container {
+        max-width: 100%;
+      }
+    }
+
+    /* Dark mode transitions */
+    * {
+      transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    /* 滚动条样式优化 */
+    .dictionary-content::-webkit-scrollbar,
+    .sidebar::-webkit-scrollbar,
+    .video-section::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .dictionary-content::-webkit-scrollbar-track,
+    .sidebar::-webkit-scrollbar-track,
+    .video-section::-webkit-scrollbar-track {
+      background: hsl(var(--muted) / 0.1);
+      border-radius: 3px;
+    }
+
+    .dictionary-content::-webkit-scrollbar-thumb,
+    .sidebar::-webkit-scrollbar-thumb,
+    .video-section::-webkit-scrollbar-thumb {
+      background: hsl(var(--border));
+      border-radius: 3px;
+    }
+
+    .dictionary-content::-webkit-scrollbar-thumb:hover,
+    .sidebar::-webkit-scrollbar-thumb:hover,
+    .video-section::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--muted-foreground));
+    }
+
+    /* 收藏按钮样式 */
+    #favoriteBtn {
+      transition: color 0.2s ease;
+    }
+
+    #favoriteBtn:hover {
+      color: hsl(var(--primary)) !important;
+    }
+
+    #favoriteBtn.favorited {
+      color: #ef4444 !important; /* 红色 */
+    }
+
+    #favoriteBtn:not(.favorited) {
+      color: hsl(var(--muted-foreground)) !important; /* 灰色 */
+    }
+
+    /* 单词本页面样式 */
+    .word-book-page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: hsl(var(--background));
+      overflow: hidden;
+    }
+
+    .word-book-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      width: 100%;
+      min-height: 0; /* 允许flex子元素收缩 */
+      height: 100vh; /* 确保占满视窗高度 */
+    }
+
+    .word-book-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: hsl(var(--secondary));
+      border: 1px solid hsl(var(--border));
+      cursor: pointer;
+      transition: all 0.15s;
+      color: hsl(var(--foreground));
+    }
+
+    .back-btn:hover {
+      background: hsl(var(--secondary) / 0.8);
+      transform: translateX(-2px);
+    }
+
+    .word-book-header h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+      flex: 1;
+    }
+
+    .word-book-stats {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .export-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .export-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: calc(var(--radius) - 2px);
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .export-btn:hover {
+      background: hsl(var(--primary) / 0.9);
+      transform: translateY(-1px);
+    }
+
+    .export-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .dropdown-icon {
+      width: 14px;
+      height: 14px;
+      transition: transform 0.15s;
+    }
+
+    .export-dropdown.open .dropdown-icon {
+      transform: rotate(180deg);
+    }
+
+    .export-dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius) - 2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.15s;
+      margin-top: 4px;
+      min-width: 180px;
+    }
+
+    .export-dropdown.open .export-dropdown-menu {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .export-option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: none;
+      background: transparent;
+      color: hsl(var(--foreground));
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background-color 0.15s;
+      text-align: left;
+    }
+
+    .export-option:hover {
+      background: hsl(var(--accent));
+    }
+
+    .export-option:first-child {
+      border-radius: calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0 0;
+    }
+
+    .export-option:last-child {
+      border-radius: 0 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px);
+    }
+
+    .export-separator {
+      height: 1px;
+      background: hsl(var(--border));
+      margin: 0.5rem 0;
+    }
+
+    /* 通用对话框样式 */
+    .dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .dialog {
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius));
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .dialog-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+    }
+
+    .dialog-content {
+      padding: 1.5rem;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    /* 云同步对话框特有样式 */
+    .sync-config-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .sync-config-section h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+    }
+
+    .text-muted {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: hsl(var(--foreground));
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .input-group input {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius) - 2px);
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-size: 0.9rem;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: hsl(var(--ring));
+      box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+    }
+
+    .sync-status {
+      background: hsl(var(--muted) / 0.5);
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius));
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .status-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .status-label {
+      font-weight: 500;
+      color: hsl(var(--foreground));
+    }
+
+    .status-value {
+      color: hsl(var(--muted-foreground));
+    }
+
+    .sync-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .sync-actions .btn {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    /* 恢复对话框样式 */
+    .restore-dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .restore-dialog {
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius));
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .restore-dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .restore-dialog-header h3 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+    }
+
+    .close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: hsl(var(--muted-foreground));
+      transition: all 0.15s;
+    }
+
+    .close-btn:hover {
+      background: hsl(var(--secondary));
+      color: hsl(var(--foreground));
+    }
+
+    .restore-dialog-content {
+      padding: 1.5rem;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .backup-info, .current-info {
+      margin-bottom: 1.5rem;
+    }
+
+    .backup-info h4, .current-info h4, .restore-options h4 {
+      margin: 0 0 0.75rem 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+    }
+
+    .backup-info p, .current-info p {
+      margin: 0.25rem 0;
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .restore-options {
+      margin-top: 1.5rem;
+    }
+
+    .restore-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius) - 2px);
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .restore-option:hover {
+      background: hsl(var(--secondary) / 0.5);
+      border-color: hsl(var(--primary));
+    }
+
+    .restore-option input[type="radio"] {
+      margin: 0;
+      margin-top: 0.125rem;
+    }
+
+    .restore-option span {
+      font-weight: 500;
+      color: hsl(var(--foreground));
+      margin-bottom: 0.25rem;
+    }
+
+    .restore-option small {
+      display: block;
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+      line-height: 1.3;
+    }
+
+    .restore-dialog-footer {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      padding: 1.5rem;
+      border-top: 1px solid hsl(var(--border));
+      background: hsl(var(--secondary) / 0.3);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: calc(var(--radius) - 2px);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+    }
+
+    .btn-primary:hover {
+      background: hsl(var(--primary) / 0.9);
+    }
+
+    .btn-secondary {
+      background: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+      border-color: hsl(var(--border));
+    }
+
+    .btn-secondary:hover {
+      background: hsl(var(--secondary) / 0.8);
+    }
+
+    .export-option i {
+      width: 16px;
+      height: 16px;
+    }
+
+    .word-count {
+      background: hsl(var(--primary) / 0.1);
+      color: hsl(var(--primary));
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .word-book-body {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0; /* 允许flex收缩 */
+      padding: 0 0.5rem; /* 添加左右内边距，避免滚动条贴边 */
+    }
+
+    .word-book-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .word-book-empty .empty-icon {
+      width: 4rem;
+      height: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .word-book-empty h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: hsl(var(--foreground));
+    }
+
+    .word-book-empty p {
+      font-size: 0.875rem;
+      line-height: 1.4;
+    }
+
+    .word-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+      padding: 1rem 0;
+      min-height: 0; /* 允许网格收缩 */
+    }
+
+    .word-item {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 1rem;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .word-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      border-color: hsl(var(--primary));
+    }
+
+    .word-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .word-text {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+    }
+
+    .remove-word-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 4px;
+      background: transparent;
+      color: hsl(var(--muted-foreground));
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+      opacity: 0;
+    }
+
+    .word-item:hover .remove-word-btn {
+      opacity: 1;
+    }
+
+    .remove-word-btn:hover {
+      background: hsl(var(--muted) / 0.5);
+      color: hsl(var(--foreground));
+      transform: scale(1.1);
+    }
+
+    .word-phonetic-display {
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+      font-style: italic;
+      margin-bottom: 0.5rem;
+    }
+
+    .word-added-time {
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .word-translation {
+      font-size: 0.875rem;
+      color: hsl(var(--foreground));
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .word-ai-explanation {
+      font-size: 0.8rem;
+      color: hsl(var(--muted-foreground));
+      background: hsl(var(--muted) / 0.1);
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .word-example-sentence {
+      font-size: 0.8rem;
+      color: hsl(var(--muted-foreground));
+      font-style: italic;
+      margin-bottom: 0.25rem;
+      line-height: 1.3;
+    }
+
+    .word-sentence-translation {
+      font-size: 0.8rem;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 0.5rem;
+      line-height: 1.3;
+    }
+
+    .word-detail-label {
+      font-size: 0.7rem;
+      color: hsl(var(--primary));
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      opacity: 0.8;
+    }
+
+    .word-screenshot-container {
+      margin-bottom: 0.5rem;
+      border-radius: 0.375rem;
+      overflow: hidden;
+      border: 1px solid hsl(var(--border));
+    }
+
+    .word-screenshot {
+      width: 100%;
+      height: auto;
+      max-height: 120px;
+      object-fit: cover;
+      display: block;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .word-screenshot:hover {
+      transform: scale(1.02);
+    }
+
+    @media (max-width: 768px) {
+      .word-book-content {
+        padding: 1rem;
+      }
+      
+      .word-list {
+        grid-template-columns: 1fr;
+      }
+      
+      .word-book-header {
+        margin-bottom: 1rem;
+      }
+      
+      .word-book-header h2 {
+        font-size: 1.25rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 头部 -->
+    <header class="header">
+      <div class="header-content">
+        <h1>
+          <img src="assets/icon.png" width="24" height="24" alt="TalkiePlay" style="margin-right: 8px;">
+          TalkiePlay
+        </h1>
+      </div>
+      <div class="header-actions">
+        <button class="home-btn" id="homeBtn" title="返回主页">
+          <i data-lucide="home"></i>
+        </button>
+        <button class="theme-toggle" id="themeToggle" title="切换主题">
+          <i data-lucide="sun" class="theme-icon-light"></i>
+          <i data-lucide="moon" class="theme-icon-dark" style="display: none;"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主页界面 -->
+    <div class="home-page" id="homePage" style="display: flex;">
+      <div class="home-content">
+        <div class="home-header">
+          <div class="sync-status-info" id="homeSyncStatus">
+            <span class="sync-status-text">未设置同步</span>
+          </div>
+          <h2>欢迎使用 TalkiePlay</h2>
+          <p>请选择一个操作：</p>
+        </div>
+        <div class="home-actions">
+          <div class="home-action-card" id="continueLastVideo">
+            <div class="action-icon">
+              <i data-lucide="play"></i>
+            </div>
+            <div class="action-content">
+              <h3>继续上次播放</h3>
+              <p id="lastVideoInfo">没有找到上次播放的视频</p>
+            </div>
+          </div>
+          <div class="home-action-card" id="openNewVideo">
+            <div class="action-icon">
+              <i data-lucide="folder-open"></i>
+            </div>
+            <div class="action-content">
+              <h3>打开新的视频</h3>
+              <p>选择或拖拽一个视频文件开始学习</p>
+            </div>
+          </div>
+          <div class="home-action-card" id="wordBook">
+            <div class="action-icon">
+              <i data-lucide="book-heart"></i>
+            </div>
+            <div class="action-content">
+              <h3>单词本</h3>
+              <p id="wordBookInfo">查看我收藏的单词</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 单词本页面 -->
+    <div class="word-book-page" id="wordBookPage" style="display: none;">
+      <div class="word-book-content">
+        <div class="word-book-header">
+          <button class="back-btn" id="wordBookBackBtn" title="返回主页">
+            <i data-lucide="arrow-left"></i>
+          </button>
+          <h2>我的单词本</h2>
+          <div class="word-book-stats">
+            <div class="export-dropdown">
+              <button class="export-btn" id="exportWordsBtn" title="单词本操作">
+                <i data-lucide="settings"></i>
+                操作
+                <i data-lucide="chevron-down" class="dropdown-icon"></i>
+              </button>
+              <div class="export-dropdown-menu" id="exportDropdownMenu">
+                <button class="export-option" id="exportTxtBtn">
+                  <i data-lucide="file-text"></i>
+                  导出为TXT
+                </button>
+                <button class="export-option" id="exportAnkiBtn">
+                  <i data-lucide="brain"></i>
+                  导出为Anki记忆卡
+                </button>
+                <div class="export-separator"></div>
+                <button class="export-option" id="backupWordsBtn">
+                  <i data-lucide="archive"></i>
+                  备份单词本
+                </button>
+                <button class="export-option" id="restoreWordsBtn">
+                  <i data-lucide="upload"></i>
+                  恢复单词本
+                </button>
+                <div class="export-separator"></div>
+                <button class="export-option" id="cloudSyncConfigBtn">
+                  <i data-lucide="cloud"></i>
+                  云同步设置
+                </button>
+                <button class="export-option" id="apiConfigBtn">
+                  <i data-lucide="key"></i>
+                  API配置
+                </button>
+              </div>
+            </div>
+            <span class="word-count" id="wordBookCount">0 个单词</span>
+          </div>
+        </div>
+        
+        <div class="word-book-body">
+          <!-- 空状态 -->
+          <div class="word-book-empty" id="wordBookEmpty">
+            <div class="empty-icon">
+              <i data-lucide="book-open"></i>
+            </div>
+            <h3>单词本为空</h3>
+            <p>开始学习视频，点击字幕中的单词并收藏吧！</p>
+          </div>
+          
+          <!-- 单词列表 -->
+          <div class="word-list" id="wordList" style="display: none;">
+            <!-- 单词项将在这里动态添加 -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 字典面板遮罩层 - 点击时关闭面板 -->
+    <div class="dictionary-overlay" id="dictionaryOverlay"></div>
+    
+    <!-- 主要内容 -->
+    <main class="main-content">
+      <!-- 视频区域 -->
+      <div class="video-section">
+        <!-- 视频上传区域 -->
+        <div class="card" id="uploadCard">
+          <div class="card-content">
+            <div class="drop-zone" id="videoDropZone">
+              <div class="drop-zone-content">
+                <h3>
+                  <i data-lucide="upload"></i>
+                  拖拽视频文件到这里
+                </h3>
+                <p>支持 MP4、AVI、MOV、MKV 等格式</p>
+                <label for="videoFileInput" class="btn btn-primary">
+                  <i data-lucide="file-plus"></i>
+                  选择视频文件
+                </label>
+                <input type="file" id="videoFileInput" accept="video/*">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 视频播放器 -->
+        <div class="video-container" id="videoContainer">
+          <video id="videoPlayer"></video>
+          <!-- 视频内字幕显示区域 -->
+          <div class="video-subtitle-overlay" id="videoSubtitleOverlay">
+            <div class="video-subtitle-content" id="videoSubtitleContent"></div>
+          </div>
+        </div>
+
+        <!-- 自定义视频控件 -->
+        <div class="custom-video-controls" id="customVideoControls" style="display: none;">
+          <!-- 进度条 -->
+          <div class="progress-container">
+            <div class="progress-bar" id="progressBar">
+              <div class="progress-filled" id="progressFilled"></div>
+              <div class="progress-handle" id="progressHandle"></div>
+            </div>
+          </div>
+          
+          <!-- 控制按钮区域 -->
+          <div class="controls-row">
+            <!-- 左侧控制 -->
+            <div class="controls-left">
+              <button class="control-btn" id="playPauseBtn" title="播放/暂停">
+                <i data-lucide="play" id="playIcon"></i>
+                <i data-lucide="pause" id="pauseIcon" style="display: none;"></i>
+              </button>
+              <div class="time-display">
+                <span id="currentTime">00:00</span>
+                <span>/</span>
+                <span id="totalTime">00:00</span>
+              </div>
+            </div>
+            
+            <!-- 右侧控制 -->
+            <div class="controls-right">
+              <!-- 音量控制 -->
+              <div class="volume-control">
+                <button class="control-btn" id="muteBtn" title="静音">
+                  <i data-lucide="volume-2" id="volumeIcon"></i>
+                  <i data-lucide="volume-x" id="muteIcon" style="display: none;"></i>
+                </button>
+                <div class="volume-slider-container">
+                  <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">
+                </div>
+              </div>
+              
+              <!-- 播放速度 -->
+              <div class="speed-control">
+                <button class="control-btn" id="speedBtn" title="播放速度">
+                  <span id="speedText">1x</span>
+                </button>
+                <div class="speed-menu" id="speedMenu">
+                  <div class="speed-option" data-speed="0.5">0.5x</div>
+                  <div class="speed-option" data-speed="0.75">0.75x</div>
+                  <div class="speed-option active" data-speed="1">1x</div>
+                  <div class="speed-option" data-speed="1.25">1.25x</div>
+                  <div class="speed-option" data-speed="1.5">1.5x</div>
+                  <div class="speed-option" data-speed="2">2x</div>
+                </div>
+              </div>
+              
+              <!-- 全屏按钮 -->
+              <button class="control-btn" id="fullscreenBtn" title="全屏">
+                <i data-lucide="maximize" id="fullscreenIcon"></i>
+                <i data-lucide="minimize" id="exitFullscreenIcon" style="display: none;"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 侧边栏 -->
+      <div class="sidebar">
+        <!-- 侧边栏内容已移至抽屉面板 -->
+      </div>
+    </main>
+
+    <!-- 独立的字典抽屉面板 -->
+    <div class="dictionary-panel" id="dictionaryPanel">
+          <div class="dictionary-header">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">单词释义</h3>
+              <button class="btn btn-ghost" id="closeDictionaryBtn" style="padding: 0.25rem;">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+            
+            <!-- Track字幕开关 -->
+            <div class="subtitle-toggle-row" style="display: none;">
+              <span class="toggle-label">显示Track字幕</span>
+              <button class="toggle-switch" id="subtitleToggleSwitch" data-enabled="false" title="显示/隐藏Track字幕">
+                <div class="toggle-slider"></div>
+              </button>
+            </div>
+
+          </div>
+          <div class="dictionary-content" id="dictionaryContent">
+            <div class="empty-state" id="dictionaryEmpty">
+              <div class="empty-state-icon">
+                <i data-lucide="book-open"></i>
+              </div>
+              <p>点击字幕中的单词查看释义</p>
+            </div>
+            
+            <div id="dictionaryLoading" style="display: none; text-align: center; padding: 2rem;">
+              <div class="loading-spinner"></div>
+              <p style="margin-top: 1rem; color: hsl(var(--muted-foreground));">查询中...</p>
+            </div>
+            
+            <div id="dictionaryResult" style="display: none;">
+              <!-- 翻译服务部分 -->
+              <div class="dictionary-section">
+                <div class="dictionary-section-title">
+                    <i data-lucide="globe"></i>
+                    <span id="translationServiceName">谷歌翻译</span>
+                    <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                      <button id="translationServiceToggle" class="btn btn-sm" style="height: 1.5rem; padding: 0.25rem 0.5rem; font-size: 0.7rem;" title="切换翻译服务">
+                        <i data-lucide="repeat" style="width: 12px; height: 12px;"></i>
+                      </button>
+                      <button id="favoriteBtn" class="btn btn-sm" style="height: 1.5rem; padding: 0.25rem 0.5rem; font-size: 0.7rem; color: hsl(var(--muted-foreground));" title="收藏单词">
+                        <i data-lucide="heart" style="width: 12px; height: 12px;" id="favoriteIcon"></i>
+                      </button>
+                    </div>
+                  </div>
+                <div class="word-title" id="wordTitle">name</div>
+                <div class="word-phonetic">
+                  <span class="phonetic-label">美式发音</span>
+                  <span id="wordPhonetic">/neɪm/</span>
+                </div>
+                <div id="wordDefinitions">
+                  <div class="definition-group">
+                    <span class="part-of-speech">n.</span>
+                    <div class="definition-text">名称；名字；名声；名誉</div>
+                  </div>
+                  <div class="definition-group">
+                    <span class="part-of-speech">v.</span>
+                    <div class="definition-text">命名；任命；给…取名；说出…的名称</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- AI释义部分 -->
+              <div class="dictionary-section ai-section">
+                <div class="dictionary-section-title">
+                  <i data-lucide="sparkles"></i>
+                  AI 释义
+                  <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                    <button id="aiServiceToggle" class="btn btn-sm" style="height: 1.5rem; padding: 0.25rem 0.5rem; font-size: 0.7rem;">
+                      <i data-lucide="cpu" style="width: 12px; height: 12px;"></i>
+                      <span id="aiServiceName">智谱AI</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="context-explanation">
+                  <div class="context-label">语境解释</div>
+                  <div class="context-text" id="contextExplanation">
+                    "name" 在当前这句话的语境中的意思是名字、名称
+                  </div>
+                </div>
+                <div class="translation-result">
+                  <div class="translation-label">整句翻译</div>
+                  <div class="translation-text" id="sentenceTranslation">
+                    此处显示翻译后的中文
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div id="dictionaryError" style="display: none; text-align: center; padding: 2rem;">
+              <i data-lucide="alert-circle" style="color: hsl(var(--destructive)); margin-bottom: 0.5rem;"></i>
+              <p style="color: hsl(var(--destructive));">查询失败，请重试</p>
+            </div>
+          </div>
+        </div>
+    </div>
+  </div>
+
+  <style>
+    /* ==================== 文本选择修复 ====================  */
+    /* 允许用户选择文本的区域 */
+    .dictionary-content,
+    .subtitle-display,
+    .subtitle-word,
+    .word-result,
+    .definition-group,
+    .word-title,
+    .word-phonetic,
+    .part-of-speech,
+    .definition-text,
+    .translation-result,
+    .ai-explanation,
+    .dictionary-section,
+    .context-text,
+    .translation-text,
+    .context-explanation,
+    .ai-section {
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      user-select: text !important;
+    }
+    
+    /* 保持按钮不能选择文本 */
+    .btn,
+    .toggle-switch,
+    .theme-toggle,
+    .header-content {
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+    
+    /* 允许标题区域选择文本，但保持拖拽功能 */
+    .header h1 {
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      user-select: text !important;
+    }
+
+    /* 云同步对话框样式 */
+    .sync-config-section {
+      padding: 1rem 0;
+    }
+
+    .sync-config-section h4 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+      margin-bottom: 0.5rem;
+    }
+
+    .text-muted {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.4;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: hsl(var(--foreground));
+      margin-bottom: 0.5rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .input-group input {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid hsl(var(--border));
+      border-radius: calc(var(--radius) - 2px);
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-size: 0.875rem;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: hsl(var(--primary));
+      box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+    }
+
+    .sync-status {
+      background: hsl(var(--muted) / 0.1);
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .status-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .status-label {
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .status-value {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: hsl(var(--foreground));
+    }
+
+    .sync-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .sync-actions .btn {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    /* API配置对话框样式 */
+    .api-config-section {
+      margin-bottom: 2rem;
+    }
+
+    .api-config-section h4 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+      margin-bottom: 0.5rem;
+    }
+
+    .api-service-card {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .service-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .service-info h5 {
+      font-size: 1rem;
+      font-weight: 500;
+      color: hsl(var(--foreground));
+      margin: 0 0 0.25rem 0;
+    }
+
+    .service-status {
+      font-size: 0.75rem;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-weight: 500;
+    }
+
+    .service-status.configured {
+      background: hsl(var(--primary) / 0.1);
+      color: hsl(var(--primary));
+    }
+
+    .service-status.not-configured {
+      background: hsl(var(--muted) / 0.5);
+      color: hsl(var(--muted-foreground));
+    }
+
+    /* 开关样式 */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: hsl(var(--muted));
+      transition: 0.2s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.2s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: hsl(var(--primary));
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    .api-config-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid hsl(var(--border));
+    }
+
+    .api-config-actions .btn {
+      min-width: 120px;
+    }
+
+    /* 密码输入框眼睛图标按钮 */
+    .input-group .btn-secondary {
+      padding: 0.5rem;
+      min-width: auto;
+      width: 2.5rem;
+      height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .input-group .btn-secondary i {
+      width: 16px;
+      height: 16px;
+    }
+  </style>
+
+  <!-- API配置对话框 -->
+  <div class="dialog-overlay" id="apiConfigDialog" style="display: none;">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h3>API服务配置</h3>
+        <button class="btn btn-ghost" id="closeApiConfigDialog">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="dialog-content">
+        <!-- 翻译服务配置 -->
+        <div class="api-config-section">
+          <h4>翻译服务</h4>
+          <p class="text-muted">配置Google翻译和DeepL翻译的API密钥</p>
+          
+          <!-- Google翻译配置 -->
+          <div class="api-service-card">
+            <div class="service-header">
+              <div class="service-info">
+                <h5>Google翻译</h5>
+                <span class="service-status" id="googleTranslateStatus">未配置</span>
+              </div>
+              <div class="service-toggle">
+                <label class="switch">
+                  <input type="checkbox" id="googleTranslateEnabled">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="googleTranslateKey">API密钥：</label>
+              <div class="input-group">
+                <input type="password" id="googleTranslateKey" placeholder="请输入Google翻译API密钥">
+                <button class="btn btn-secondary" id="toggleGoogleKeyVisibility" type="button">
+                  <i data-lucide="eye" id="googleEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- DeepL翻译配置 -->
+          <div class="api-service-card">
+            <div class="service-header">
+              <div class="service-info">
+                <h5>DeepL翻译</h5>
+                <span class="service-status" id="deeplTranslateStatus">未配置</span>
+              </div>
+              <div class="service-toggle">
+                <label class="switch">
+                  <input type="checkbox" id="deeplTranslateEnabled">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="deeplTranslateKey">API密钥：</label>
+              <div class="input-group">
+                <input type="password" id="deeplTranslateKey" placeholder="请输入DeepL翻译API密钥">
+                <button class="btn btn-secondary" id="toggleDeeplKeyVisibility" type="button">
+                  <i data-lucide="eye" id="deeplEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- AI服务配置 -->
+        <div class="api-config-section">
+          <h4>AI服务</h4>
+          <p class="text-muted">配置DeepSeek和智谱AI的API密钥</p>
+          
+          <!-- DeepSeek配置 -->
+          <div class="api-service-card">
+            <div class="service-header">
+              <div class="service-info">
+                <h5>DeepSeek AI</h5>
+                <span class="service-status" id="deepseekStatus">未配置</span>
+              </div>
+              <div class="service-toggle">
+                <label class="switch">
+                  <input type="checkbox" id="deepseekEnabled">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="deepseekKey">API密钥：</label>
+              <div class="input-group">
+                <input type="password" id="deepseekKey" placeholder="请输入DeepSeek API密钥">
+                <button class="btn btn-secondary" id="toggleDeepseekKeyVisibility" type="button">
+                  <i data-lucide="eye" id="deepseekEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 智谱AI配置 -->
+          <div class="api-service-card">
+            <div class="service-header">
+              <div class="service-info">
+                <h5>智谱AI</h5>
+                <span class="service-status" id="zhipuStatus">未配置</span>
+              </div>
+              <div class="service-toggle">
+                <label class="switch">
+                  <input type="checkbox" id="zhipuEnabled">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="zhipuKey">API密钥：</label>
+              <div class="input-group">
+                <input type="password" id="zhipuKey" placeholder="请输入智谱AI API密钥">
+                <button class="btn btn-secondary" id="toggleZhipuKeyVisibility" type="button">
+                  <i data-lucide="eye" id="zhipuEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="api-config-actions">
+          <button class="btn btn-primary" id="saveApiConfigBtn">
+            <i data-lucide="save"></i>
+            保存配置
+          </button>
+          <button class="btn btn-secondary" id="resetApiConfigBtn">
+            <i data-lucide="refresh-cw"></i>
+            重置配置
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 云同步配置对话框 -->
+  <div class="dialog-overlay" id="cloudSyncDialog" style="display: none;">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h3>云同步设置</h3>
+        <button class="btn btn-ghost" id="closeCloudSyncDialog">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="dialog-content">
+        <div class="sync-config-section">
+          <h4>坚果云同步配置</h4>
+          <p class="text-muted">选择坚果云同步文件夹，实现多设备间单词本同步</p>
+          
+          <div class="form-group">
+            <label for="syncFolderPath">同步文件夹路径：</label>
+            <div class="input-group">
+              <input type="text" id="syncFolderPath" placeholder="请选择坚果云同步文件夹" readonly>
+              <button class="btn btn-secondary" id="selectSyncFolderBtn">
+                <i data-lucide="folder"></i>
+                选择文件夹
+              </button>
+            </div>
+          </div>
+          
+          <div class="sync-status" id="syncStatus">
+            <div class="status-item">
+              <span class="status-label">同步状态：</span>
+              <span class="status-value" id="syncStatusText">未配置</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">最后同步：</span>
+              <span class="status-value" id="lastSyncTime">从未同步</span>
+            </div>
+          </div>
+          
+          <div class="sync-actions">
+            <button class="btn btn-primary" id="enableSyncBtn" disabled>
+              <i data-lucide="cloud-upload"></i>
+              启用云同步
+            </button>
+            <button class="btn btn-secondary" id="disableSyncBtn" style="display: none;">
+              <i data-lucide="cloud-off"></i>
+              禁用云同步
+            </button>
+            <button class="btn btn-secondary" id="forceSyncBtn" style="display: none;">
+              <i data-lucide="refresh-cw"></i>
+              立即同步
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 初始化 Lucide 图标
+    lucide.createIcons();
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

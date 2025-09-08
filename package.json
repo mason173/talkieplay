@@ -1,0 +1,115 @@
+{
+  "name": "talkieplay",
+  "version": "1.0.0",
+  "description": "TalkiePlay - 一个支持英语学习的视频播放器，带有智能字幕功能和单词查询",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron .",
+    "build": "electron-builder",
+    "build-win": "electron-builder --win",
+    "build-mac": "electron-builder --mac",
+    "build-linux": "electron-builder --linux",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --publish=never",
+    "build-css": "tailwindcss -i ./src/input.css -o ./player.css --watch",
+    "rebuild": "electron-rebuild"
+  },
+  "keywords": [
+    "video",
+    "player",
+    "subtitle",
+    "english",
+    "learning",
+    "dictionary",
+    "electron"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "homepage": "https://github.com/yourname/talkieplay",
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
+    "autoprefixer": "^10.4.16",
+    "electron": "^27.3.11",
+    "electron-builder": "^24.13.3",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1",
+    "@radix-ui/react-slot": "^1.0.2",
+    "anki-apkg-export": "^4.0.3",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "edge-tts-client": "^1.0.2",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.294.0",
+    "tailwind-merge": "^2.0.0"
+  },
+  "build": {
+    "appId": "com.yourcompany.talkieplay",
+    "productName": "TalkiePlay",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*",
+      "!dist/**/*",
+      "!.git/**/*",
+      "!.DS_Store"
+    ],
+    "mac": {
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.video",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "maintainer": "TalkiePlay Team <support@talkieplay.com>",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
