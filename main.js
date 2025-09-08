@@ -1003,20 +1003,58 @@ ipcMain.handle('enable-cloud-sync', async (event, syncFolderPath) => {
       }
     }
     
-    // 更新最后同步时间
-    cloudSyncConfig.lastSyncTime = new Date().toISOString();
-    saveCloudSyncConfig();
-    
-    // 重新加载数据库（坚果云会自动同步文件）
-    if (favoriteDB) {
-      favoriteDB.loadFromFile();
+    // 将本地单词数据迁移到云目录
+    try {
+      const sourceDbPath = favoriteDB && typeof favoriteDB.getDbPath === 'function' ? favoriteDB.getDbPath() : null;
+      if (sourceDbPath && fs.existsSync(sourceDbPath)) {
+        const targetDbPath = path.join(talkiePlayFolder, 'wordbook.json');
+        fs.copyFileSync(sourceDbPath, targetDbPath);
+      }
+      const sourceDir = sourceDbPath ? path.dirname(sourceDbPath) : null;
+      const sourceImagesDir = sourceDir ? path.join(sourceDir, 'images') : null;
+      const targetImagesDir = path.join(talkiePlayFolder, 'images');
+      if (sourceImagesDir && fs.existsSync(sourceImagesDir)) {
+        fs.mkdirSync(targetImagesDir, { recursive: true });
+        // 递归复制图片目录
+        fs.cpSync(sourceImagesDir, targetImagesDir, { recursive: true });
+      }
+      console.log('☁️ [云同步] 已迁移本地单词本与图片到云目录');
+    } catch (e) {
+      console.error('☁️ [云同步] 迁移本地数据到云目录失败:', e);
     }
     
-    console.log('☁️ [云同步] 强制同步完成');
+    // 更新云同步配置并保存
+    cloudSyncConfig.enabled = true;
+    cloudSyncConfig.syncFolderPath = syncFolderPath;
+    cloudSyncConfig.lastSyncTime = new Date().toISOString();
+    saveCloudSyncConfig();
+
+    // 切换数据库到云目录并加载
+    try {
+      if (favoriteDB) {
+        favoriteDB.close();
+      }
+      favoriteDB = new FavoriteWordsDB();
+      favoriteDB.initialize(talkiePlayFolder);
+      if (favoriteDB && typeof favoriteDB.loadFromFile === 'function') {
+        favoriteDB.loadFromFile();
+      }
+    } catch (e) {
+      console.error('☁️ [云同步] 重新初始化云目录数据库失败:', e);
+    }
+    
+    console.log('☁️ [云同步] 启用并切换至云目录完成');
+    // 通知渲染进程
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('sync-status-update', { status: 'success', message: '云同步已启用并完成初次迁移' });
+    }
     return { success: true, message: 'API配置和单词数据同步完成' };
     
   } catch (error) {
-    console.error('☁️ [云同步] 同步失败:', error);
+    console.error('☁️ [云同步] 启用失败:', error);
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('sync-status-update', { status: 'error', message: '启用云同步失败' });
+    }
     return { success: false, error: error.message };
   }
 });
@@ -1050,6 +1088,11 @@ ipcMain.handle('force-sync', async () => {
     }
     
     const talkiePlayFolder = path.join(cloudSyncConfig.syncFolderPath, 'TalkiePlay');
+
+    // 通知渲染进程正在同步
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('sync-status-update', { status: 'syncing', message: '正在同步到云端…' });
+    }
     
     // 同步API配置到云端
     if (apiConfig) {
@@ -1063,7 +1106,6 @@ ipcMain.handle('force-sync', async () => {
     if (fs.existsSync(cloudApiConfigPath)) {
       try {
         const cloudApiConfig = JSON.parse(fs.readFileSync(cloudApiConfigPath, 'utf8'));
-        // 确保apiConfig已初始化
         if (!apiConfig) {
           apiConfig = {
             openai: { apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-3.5-turbo' },
@@ -1071,9 +1113,7 @@ ipcMain.handle('force-sync', async () => {
             currentProvider: 'openai'
           };
         }
-        // 合并云端配置到本地
         apiConfig = { ...apiConfig, ...cloudApiConfig };
-        // 同步到本地API配置文件
         fs.writeFileSync(apiConfigPath, JSON.stringify(apiConfig, null, 2));
         console.log('☁️ [云同步] 从云端加载API配置成功');
       } catch (error) {
@@ -1081,21 +1121,31 @@ ipcMain.handle('force-sync', async () => {
       }
     }
     
-    // 确保apiConfig已初始化
-    if (!apiConfig) {
-      apiConfig = {
-        openai: { apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-3.5-turbo' },
-        deepseek: { apiKey: '', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
-        currentProvider: 'openai'
-      };
-    }
-    
-    // 同步本地API配置到云端
+    // 同步本地单词本与图片到云目录（如果当前仍在本地目录）
     try {
-      fs.writeFileSync(cloudApiConfigPath, JSON.stringify(apiConfig, null, 2));
-      console.log('☁️ [云同步] API配置已自动同步到云端');
-    } catch (error) {
-      console.error('☁️ [云同步] API配置自动同步到云端失败:', error);
+      const sourceDbPath = favoriteDB && typeof favoriteDB.getDbPath === 'function' ? favoriteDB.getDbPath() : null;
+      if (sourceDbPath && fs.existsSync(sourceDbPath)) {
+        const sourceDir = path.dirname(sourceDbPath);
+        const targetDbPath = path.join(talkiePlayFolder, 'wordbook.json');
+        const targetImagesDir = path.join(talkiePlayFolder, 'images');
+        // 当源不在云目录时进行复制
+        if (sourceDir !== talkiePlayFolder) {
+          fs.copyFileSync(sourceDbPath, targetDbPath);
+          const sourceImagesDir = path.join(sourceDir, 'images');
+          if (fs.existsSync(sourceImagesDir)) {
+            fs.mkdirSync(targetImagesDir, { recursive: true });
+            fs.cpSync(sourceImagesDir, targetImagesDir, { recursive: true });
+          }
+          console.log('☁️ [云同步] 已将本地单词本与图片同步到云目录');
+        } else {
+          // 若已在云目录，确保最新内容已写盘
+          if (favoriteDB && !favoriteDB.useSQLite && typeof favoriteDB.saveToFile === 'function') {
+            favoriteDB.saveToFile();
+          }
+        }
+      }
+    } catch (e) {
+      console.error('☁️ [云同步] 同步单词本到云目录失败:', e);
     }
     
     // 更新最后同步时间
@@ -1107,11 +1157,17 @@ ipcMain.handle('force-sync', async () => {
       await favoriteDB.loadFromFile();
     }
     
-    console.log('☁️ [云同步] 自动同步完成');
-    return { success: true, message: 'API配置和单词数据自动同步完成' };
+    console.log('☁️ [云同步] 同步完成');
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('sync-status-update', { status: 'success', message: '同步完成' });
+    }
+    return { success: true, message: 'API配置和单词数据同步完成' };
     
   } catch (error) {
-    console.error('☁️ [云同步] 自动同步失败:', error);
+    console.error('☁️ [云同步] 同步失败:', error);
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('sync-status-update', { status: 'error', message: '同步失败' });
+    }
     return { success: false, error: error.message };
   }
 });
@@ -1189,3 +1245,100 @@ async function performAutoSync() {
 
 // 修改原有的数据库初始化逻辑以支持云同步
 // 注意：原有的 init-favorite-database 处理程序已在第356行定义，这里不重复定义
+
+// ... 云同步辅助：读取任意路径的wordbook并解析为内部结构（含截图Base64）
+function loadImageAsBase64From(baseDir, imageRelativePath) {
+  try {
+    const fullImagePath = path.join(baseDir, imageRelativePath);
+    if (fs.existsSync(fullImagePath)) {
+      const imageBuffer = fs.readFileSync(fullImagePath);
+      const base64Data = imageBuffer.toString('base64');
+      return `data:image/jpeg;base64,${base64Data}`;
+    }
+  } catch (e) {
+    console.error('加载外部图片失败:', e);
+  }
+  return '';
+}
+
+function readWordbookFrom(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    const baseDir = path.dirname(filePath);
+    const content = fs.readFileSync(filePath, 'utf8');
+    const data = JSON.parse(content);
+    if (data.words && Array.isArray(data.words)) {
+      return data.words.map(w => ({
+        word: (w.word || '').toString().trim().toLowerCase(),
+        pronunciation: w.pronunciation || '',
+        translation: w.translation || '',
+        aiExplanation: w.aiExplanation || '',
+        exampleSentence: w.exampleSentence || '',
+        sentenceTranslation: w.sentenceTranslation || '',
+        screenshot: w.screenshotFile ? loadImageAsBase64From(baseDir, w.screenshotFile) : (w.screenshot || ''),
+        createdAt: w.createdAt || new Date().toISOString(),
+        updatedAt: w.updatedAt || w.createdAt || new Date().toISOString()
+      }));
+    }
+    // 兼容简单数组格式
+    if (Array.isArray(data)) {
+      return data.map(w => ({
+        word: (w.word || '').toString().trim().toLowerCase(),
+        pronunciation: w.pronunciation || '',
+        translation: w.translation || '',
+        aiExplanation: w.aiExplanation || '',
+        exampleSentence: w.exampleSentence || '',
+        sentenceTranslation: w.sentenceTranslation || '',
+        screenshot: w.screenshot || '',
+        createdAt: w.createdAt || new Date().toISOString(),
+        updatedAt: w.updatedAt || w.createdAt || new Date().toISOString()
+      }));
+    }
+  } catch (e) {
+    console.error('读取外部wordbook失败:', e);
+  }
+  return [];
+}
+
+function mergeWordLists(localWords = [], remoteWords = []) {
+  const map = new Map();
+  const put = (item, source) => {
+    const key = (item.word || '').toString().trim().toLowerCase();
+    if (!key) return;
+    const normalized = {
+      word: key,
+      pronunciation: item.pronunciation || '',
+      translation: item.translation || '',
+      aiExplanation: item.aiExplanation || '',
+      exampleSentence: item.exampleSentence || '',
+      sentenceTranslation: item.sentenceTranslation || '',
+      screenshot: item.screenshot || '',
+      createdAt: item.createdAt || item.updatedAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+    };
+    if (!map.has(key)) {
+      map.set(key, { ...normalized, _src: source });
+    } else {
+      const exist = map.get(key);
+      const timeA = new Date(exist.updatedAt || 0).getTime();
+      const timeB = new Date(normalized.updatedAt || 0).getTime();
+      if (timeB > timeA) {
+        // 以更新时间较新的为准
+        map.set(key, { ...normalized, _src: source });
+      } else if (timeB === timeA) {
+        // 时间相同，优先保留已有（避免抖动）；若现有缺图而新有图，则补图
+        if ((!exist.screenshot || !exist.screenshot.startsWith('data:image/')) && normalized.screenshot && normalized.screenshot.startsWith('data:image/')) {
+          exist.screenshot = normalized.screenshot;
+          map.set(key, exist);
+        }
+      }
+      // createdAt取两者更早
+      const merged = map.get(key);
+      merged.createdAt = new Date(Math.min(new Date(merged.createdAt).getTime(), new Date(normalized.createdAt).getTime())).toISOString();
+      map.set(key, merged);
+    }
+  };
+  for (const w of localWords) put(w, 'local');
+  for (const w of remoteWords) put(w, 'remote');
+  return Array.from(map.values()).map(({ _src, ...rest }) => rest);
+}
